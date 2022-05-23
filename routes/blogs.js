@@ -80,21 +80,20 @@ router.put("/update-blog/:blogId", function (req, res, next) {
         author,
     }
 
-    const updatedBlogList = generateUpdatedBlogs(blogsImport.blogPosts, blogId, updatedBlogData)
-    console.log("updatedBlogList", updatedBlogList)
+    // const updatedBlogList = generateUpdatedBlogs(blogsImport.blogPosts, blogId, updatedBlogData) //Separate function that is repeated
+    // const updatedBlogList = generateBlogsShorthand(blogsImport.blogPosts, blogId, "update", updatedBlogData) //Combined function that is not repeated, using shorthand
+    const updatedBlogList = generateBlogs(blogsImport.blogPosts, blogId, "update", updatedBlogData) //Combined function that is not repeated, NOT using shorthand. The one you need to know how to do!
     saveBlogPosts(updatedBlogList)
-
     res.send("OK");
 })
 
 router.delete("/delete-blog/:blogId", (req, res)=> {
-    const idOfBlogToDelete = req.params.blogId;
-    const filteredPosts = generateFilteredBlogs(blogsImport.blogPosts, idOfBlogToDelete);
-
-    saveBlogPosts(filteredPosts)
-    setTimeout(() => {
-        res.send("deleted blog")
-    }, 5000);
+    const blogId = String(req.params.blogId)
+    // const filteredPosts = generateFilteredBlogs(blogsImport.blogPosts, blogId); //Separate function that is repeated
+    // const filteredBlogList = generateBlogsShorthand(blogsImport.blogPosts, blogId, "filter") //Combined function that is not repeated, using shorthand
+    const filteredBlogList = generateBlogs(blogsImport.blogPosts, blogId, "filter") //Combined function that is not repeated, NOT using shorthand. The one you need to know how to do!
+    saveBlogPosts(filteredBlogList)
+    res.send("deleted blog")
 })
 
 const findBlogId = (blogId) => {
@@ -102,26 +101,74 @@ const findBlogId = (blogId) => {
   return foundBlog;
 };
 
-/* DRY
-    DON'T
-    REPEAT
-    YOURSELF 
-*/
+const generateBlogs = (blogList, blogId, filterOrUpdate, updatedBlogData) => {
+    const newBlogList = []
+
+    for (i = 0; i < blogList.length; i++) {
+        const currentBlog = blogList[i]
+        if (currentBlog.id === blogId) {
+            //Do something else
+            if (filterOrUpdate === "filter") {
+                //Filter the blog out
+                continue;
+            }
+            if (filterOrUpdate === "update") {
+                //Update the blog
+                if (updatedBlogData.title !== currentBlog.title && updatedBlogData.title !== "") {
+                    currentBlog.title = updatedBlogData.title
+                }
+                if (updatedBlogData.text !== currentBlog.text && updatedBlogData.text !== "") {
+                    currentBlog.text = updatedBlogData.text
+                }
+                if (updatedBlogData.author !== currentBlog.author && updatedBlogData.author !== "") {
+                    currentBlog.author = updatedBlogData.author
+                }
+            }
+        }
+        newBlogList.push(currentBlog);
+    }
+
+    return newBlogList
+}
+
+const generateBlogsShorthand = (blogList, blogId, filterOrUpdate, updatedBlogData) => {
+    if (!blogId) {
+        //Default for no blogId to modify
+        return blogList
+    }
+
+    if (filterOrUpdate === "filter") {
+        return blogList.filter((blog)=>blog.id !== blogId)
+    }
+    if (filterOrUpdate === "update") { 
+        return blogList.map((blog)=>{
+            // const currentBlog = blog // Wrong
+            if (blog.id === blogId) {
+                return {
+                    ...blog,
+                    title: updatedBlogData.title ? updatedBlogData.title : blog.title,
+                    text: updatedBlogData.text ? updatedBlogData.text : blog.text,
+                    author: updatedBlogData.author ? updatedBlogData.author : blog.author
+                }
+            }
+            return blog
+        })
+    }
+}
 
 const generateFilteredBlogs = (blogList, blogIdToDelete) => {
 
     const filteredBlogList = []
     
-    for (let i; i < blogList.length; i++) {
+    for (let i = 0; i < blogList.length; i++) {
         const currentBlog = blogList[i]
         if (currentBlog.id === blogIdToDelete) {
-            continue;
+            // continue;
         }
         filteredBlogList.push(currentBlog);
     }
 
     return filteredBlogList;
-    // return blogList.filter((blog)=>blog.id !== blogId)
 }
 
 const generateUpdatedBlogs = (blogList, blogIdToUpdate, updatedBlogData) => {
@@ -145,21 +192,7 @@ const generateUpdatedBlogs = (blogList, blogIdToUpdate, updatedBlogData) => {
     }
 
     return updatedBlogList;
-    // return blogList.map((blog)=>{
-    //     if (blog.id === blogIdToUpdate) {
-    //         const newBlogData = {
-    //             id: blog.id,
-    //             createdAt: blog.createdAt,
-    //             title: updatedBlog.title ? updatedBlog.title : blog.title,
-    //             text: updatedBlog.text ? updatedBlog.text : blog.text,
-    //             author: updatedBlog.author ? updatedBlog.author : blog.author
-    //         }
-    //         return newBlogData
-    //     }
-    //     return blog
-    // })
 }
-
 const saveBlogPosts = (blogList) => {
     blogsImport.blogPosts = blogList;
 }
