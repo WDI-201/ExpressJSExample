@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script>
+      $(document).ready(function () {
+        
+        //Ignore the following lines, this is just a helper function to get the PUT and DELETE methods into jQuery
+        jQuery.each(["put", "delete"], function (i, method) {
+          jQuery[method] = function (url, data, callback, type) {
+            if (jQuery.isFunction(data)) {
+              type = type || callback;
+              callback = data;
+              data = undefined;
+            }
+
+            return jQuery.ajax({
+              url: url,
+              type: method,
+              dataType: type,
+              data: data,
+              success: callback,
+            });
+          };
+        });
+
+        //Start reading from here
+        var blogId;
+        $("#getSingleBlog").click(function () {
+          blogId = $("#blogId").val();
+          $.get(
+            "http://localhost:4000/blogs/singleBlog/" + blogId,
+            function (blog) {
+              $("#blogTitle").html(blog.title);
+              $("#blogAuthor").html(blog.author);
+              $("#blogText").html(blog.text);
+            }
+          );
+        });
+        $("#deleteSingleBlog").click(function () {
+          blogId = $("#blogId").val();
+          $.delete("http://localhost:4000/blogs/delete-blog/" + blogId, 
+          function (response){
+            console.log("response data ", response)
+          });
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <h1>Single Blog</h1>
+    <h2>
+      <a href="http://localhost:4000/blogs/displayBlogs">DisplayBlogs</a>
+      <a href="http://localhost:4000/blogs/displaySingleBlog"
+        >DisplaySingleBlog</a
+      >
+      <a href="http://localhost:4000/blogs/postblog">PostAndEditBlog</a>
+    </h2>
+    <span>
+      <label>Blog ID</label>
+      <input id="blogId" type="text" />
+    </span>
+    <hr/>
+    <button id="getSingleBlog">Get Single Blog</button>
+    <button id="deleteSingleBlog">Delete Single Blog</button>
+    <div>
+      <p id="blogTitle"></p>
+      <p id="blogAuthor"></p>
+      <p id="blogText"></p>
+    </div>
+  </body>
+</html>

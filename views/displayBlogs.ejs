@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
+    <script>
+      $(document).ready(function () {
+        var blogs = [];
+        var sortOrder;
+        var baseUrl = "http://localhost:4000/blogs/all";
+        $("#getBlogs").click(function () {
+          $("#blogList").empty();
+          sortOrder = $("#sortOrderSelect").val();
+          var url = baseUrl;
+          if (sortOrder === "all") {
+          } else if (sortOrder === "asc") {
+            url = baseUrl + "?sort=asc";
+          } else if (sortOrder === "desc") {
+            url = baseUrl + "?sort=desc";
+          }
+          $.get(url, function (blogs) {
+            blogs.forEach((blog) => {
+              $("#blogList").append(
+                "<li>" +
+                  "<p>" +
+                  blog.createdAt +
+                  "</p>" +
+                  "<p>" +
+                  blog.title +
+                  "</p>" +
+                  "<p>" +
+                  blog.author +
+                  "</p>" +
+                  "<p>" +
+                  blog.text +
+                  "</p>" +
+                  "</li>"
+              );
+            });
+          });
+        });
+      });
+    </script>
+  </head>
+  <body>
+    <h1>Display Blogs</h1>
+    <h2>
+      <a href="http://localhost:4000/blogs/displayBlogs">DisplayBlogs</a>
+      <a href="http://localhost:4000/blogs/displaySingleBlog"
+        >DisplaySingleBlog</a
+      >
+      <a href="http://localhost:4000/blogs/postblog">PostAndEditBlog</a>
+    </h2>
+    <button id="getBlogs">Get Blogs</button>
+    <select id="sortOrderSelect">
+      <option value="all" select>ALL</option>
+      <option value="asc">ASC</option>
+      <option value="desc">DESC</option>
+    </select>
+    <ul id="blogList"></ul>
+  </body>
+</html>
