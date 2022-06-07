@@ -24,15 +24,21 @@
           };
         });
 
-        var title, text, author, blogId;
+        var title, text, author, category, blogId;
         $("#submit").click(function () {
           title = $("#title").val();
           text = $("#text").val();
           author = $("#author").val();
+          category = $("#category").val();
           $.post("http://localhost:4000/blogs/submit", {
             title: title,
             text: text,
             author: author,
+            category: category,
+          }, (data)=>{
+            if (data === "Title was not included!") {
+              alert(data)
+            }
           });
         });
         $("#update").click(function () {
@@ -40,10 +46,12 @@
           title = $("#title").val();
           text = $("#text").val();
           author = $("#author").val();
+          category = $("#category").val();
           $.put("http://localhost:4000/blogs/update-blog/" + blogId, {
             title: title,
             text: text,
             author: author,
+            category: category,
           });
         });
       });
@@ -62,6 +70,9 @@
     <p><label>Blog Text</label> <input id="text" size="300" type="text" /></p>
     <p>
         <label>Blog Author</label> <input id="author" size="40" type="text" />
+    </p>
+    <p>
+        <label>Blog Category</label> <input id="category" size="40" type="text" />
     </p>
     <input id="submit" type="button" value="Submit" />
     <hr/>

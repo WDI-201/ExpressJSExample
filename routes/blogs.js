@@ -1,43 +1,166 @@
 var express = require("express");
 var router = express.Router();
 
-var blogsImport = require("../public/sampleBlogs");
+const { blogsDB } = require("../mongo");
+
+const findPost = async (blogId) => {
+    try {
+        const collection = await blogsDB().collection("posts")
+        return await collection.findOne({id: blogId})
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const getPosts = async (limit, skip, sortField, sortOrder, filterField, filterValue) => {
+    try {
+        const collection = await blogsDB().collection("posts")
+
+        //Validation
+        let dbLimit = limit
+        if (!limit) {
+            dbLimit = 100
+        }
+        
+        let dbSkip = skip
+        if (!skip) {
+            dbSkip = 0
+        }
+        
+        const sortParams = {}
+        if (sortField && sortOrder) {
+            let convertedSortOrder = 1;
+            if (sortOrder.toLowerCase() === "asc") {
+                convertedSortOrder = 1
+            }
+            if (sortOrder.toLowerCase() === "desc") {
+                convertedSortOrder = -1
+            }
+            sortParams[sortField] = convertedSortOrder
+        }
+        
+        const filterParams = {}
+        if (filterField && filterValue) {
+            filterParams[filterField] = filterValue
+        }
+        
+        const dbResult = await collection.find(filterParams)
+            .limit(dbLimit)
+            .skip(dbSkip)
+            .sort(sortParams)
+            .toArray();
+        
+        return dbResult
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const getAuthors = async () => {
+    try {
+        const collection = await blogsDB().collection("posts")
+        const posts = await collection.distinct("author")
+        const authors = posts.filter((author)=>{return !!author})
+        return authors
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const getPostsCollectionLength = async () => {
+    try {
+        const collection = await blogsDB().collection("posts")
+        return await collection.count()
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const makePost = async (blogId, title, text, author, category) => {
+    try {
+        const collection = await blogsDB().collection("posts")
+        const newPost = {
+            id: blogId,
+            title: title,
+            text: text,
+            author: author,
+            category: category,
+            createdAt: new Date(),
+            lastModified: new Date()
+        }
+        await collection.insertOne(newPost)
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const updatePost = async (blogId, title, text, author, category) => {
+    try {
+        const collection = await blogsDB().collection("posts")
+        const updatedPost = {
+            title: title,
+            text: text,
+            author: author,
+            category: category,
+            lastModified: new Date()
+        }
+        await collection.updateOne({
+            id: blogId
+        },{
+            $set:{
+                ...updatedPost
+            }
+        })
+    } catch (e) {
+        console.error(e)
+    }
+}
+
+const deletePosts = async (blogIds) => {
+    try {
+        const collection = await blogsDB().collection("posts")
+        await collection.deleteMany({
+            id: {
+                $in: blogIds 
+            }
+        })    
+    } catch (e) {
+        console.error(e)
+    }
+}
 
 /* GET users listing. */
-router.get("/", function (req, res, next) {
-  res.json("Blogs Index Route");
+router.get("/", async function (req, res, next) {
+    try {
+        const collection = await blogsDB().collection("posts")
+        const posts = await collection.find({}).toArray()
+        res.json(posts);
+    } catch (e) {
+        res.status(500).send("Error fetching posts. " + e)
+    }
 });
 
-router.get("/all", function (req, res, next) {
-    const sortOrder = req.query.sort;
-    console.log(sortOrder)
-    blogsImport.blogPosts.sort((a, b) => {
-        if (sortOrder === "asc") {
-            if (a.createdAt < b.createdAt) {
-              return -1;
-            }
-            if (a.createdAt > b.createdAt) {
-              return 1;
-            }
-        }
-        if (sortOrder === "desc") {
-            if (a.createdAt > b.createdAt) {
-              return -1;
-            }
-            if (a.createdAt < b.createdAt) {
-              return 1;
-            }
-        }
-        return 0;
-      })
-
-  res.json(blogsImport.blogPosts);
+router.get("/all", async function (req, res, next) {
+    const limit = Number(req.query.limit)
+    const skip = Number(req.query.skip)
+    const sortField = req.query.sortField 
+    const sortOrder = req.query.sortOrder 
+    const filterField = req.query.filterField 
+    const filterValue = req.query.filterValue
+    const allPosts = await getPosts(limit, skip, sortField, sortOrder, filterField, filterValue)
+    res.json(allPosts);
 });
 
-router.get("/singleblog/:blogId", function (req, res, next) {
-  const blogId = req.params.blogId;
-  res.json(findBlogId(blogId));
+router.get("/singleblog/:blogId", async function (req, res, next) {
+  const blogId = Number(req.params.blogId);
+  const blogPost = await findPost(blogId)
+  res.json(blogPost);
 });
+
+router.get("/authors", async function (req, res, next) {
+    const authors = await getAuthors();
+    res.json(authors);
+})
 
 router.get("/postblog", function (req, res, next) {
     res.render('postBlog');
@@ -51,151 +174,40 @@ router.get("/displaysingleblog", function (req, res, next) {
     res.render('displaySingleBlog');
 })
 
-router.post("/submit", function (req, res, next) {
-    console.log(req.body)
-    console.log("bloglist before ", blogsImport.blogPosts)
-    const today = new Date()
-    const newPost = {
-        title: req.body.title,
-        text: req.body.text,
-        author: req.body.author,
-        createdAt: today.toISOString(),
-        id: String(blogsImport.blogPosts.length + 1)
-    }
-    blogsImport.blogPosts.push(newPost)
-    console.log("bloglist after ", blogsImport.blogPosts)
-
-    res.send("OK");
-})
-
-router.put("/update-blog/:blogId", function (req, res, next) {
-    const blogId = String(req.params.blogId)
+router.post("/submit", async function (req, res, next) {
+    const blogId = await getPostsCollectionLength() + 1;
     const title = req.body.title
     const text = req.body.text
     const author = req.body.author
-
-    const updatedBlogData = {
-        title,
-        text,
-        author,
+    const category = req.body.category
+   
+    if (!title) {
+        res.send("Title was not included!")
+        return;
     }
 
-    // const updatedBlogList = generateUpdatedBlogs(blogsImport.blogPosts, blogId, updatedBlogData) //Separate function that is repeated
-    // const updatedBlogList = generateBlogsShorthand(blogsImport.blogPosts, blogId, "update", updatedBlogData) //Combined function that is not repeated, using shorthand
-    const updatedBlogList = generateBlogs(blogsImport.blogPosts, blogId, "update", updatedBlogData) //Combined function that is not repeated, NOT using shorthand. The one you need to know how to do!
-    saveBlogPosts(updatedBlogList)
+    await makePost(blogId, title, text, author, category)
+
     res.send("OK");
 })
 
-router.delete("/delete-blog/:blogId", (req, res)=> {
-    const blogId = String(req.params.blogId)
-    // const filteredPosts = generateFilteredBlogs(blogsImport.blogPosts, blogId); //Separate function that is repeated
-    // const filteredBlogList = generateBlogsShorthand(blogsImport.blogPosts, blogId, "filter") //Combined function that is not repeated, using shorthand
-    const filteredBlogList = generateBlogs(blogsImport.blogPosts, blogId, "filter") //Combined function that is not repeated, NOT using shorthand. The one you need to know how to do!
-    saveBlogPosts(filteredBlogList)
-    res.send("deleted blog")
+router.put("/update-blog/:blogId", async function (req, res, next) {
+    const blogId = Number(req.params.blogId)
+    const title = req.body.title
+    const text = req.body.text
+    const author = req.body.author
+    const category = req.body.category
+
+    await updatePost(blogId, title, text, author, category)
+    
+    res.send("OK");
 })
 
-const findBlogId = (blogId) => {
-  const foundBlog = blogsImport.blogPosts.find(element => element.id === blogId);
-  return foundBlog;
-};
-
-const generateBlogs = (blogList, blogId, filterOrUpdate, updatedBlogData) => {
-    const newBlogList = []
-
-    for (i = 0; i < blogList.length; i++) {
-        const currentBlog = blogList[i]
-        if (currentBlog.id === blogId) {
-            //Do something else
-            if (filterOrUpdate === "filter") {
-                //Filter the blog out
-                continue;
-            }
-            if (filterOrUpdate === "update") {
-                //Update the blog
-                if (updatedBlogData.title !== currentBlog.title && updatedBlogData.title !== "") {
-                    currentBlog.title = updatedBlogData.title
-                }
-                if (updatedBlogData.text !== currentBlog.text && updatedBlogData.text !== "") {
-                    currentBlog.text = updatedBlogData.text
-                }
-                if (updatedBlogData.author !== currentBlog.author && updatedBlogData.author !== "") {
-                    currentBlog.author = updatedBlogData.author
-                }
-            }
-        }
-        newBlogList.push(currentBlog);
-    }
-
-    return newBlogList
-}
-
-const generateBlogsShorthand = (blogList, blogId, filterOrUpdate, updatedBlogData) => {
-    if (!blogId) {
-        //Default for no blogId to modify
-        return blogList
-    }
-
-    if (filterOrUpdate === "filter") {
-        return blogList.filter((blog)=>blog.id !== blogId)
-    }
-    if (filterOrUpdate === "update") { 
-        return blogList.map((blog)=>{
-            // const currentBlog = blog // Wrong
-            if (blog.id === blogId) {
-                return {
-                    ...blog,
-                    title: updatedBlogData.title ? updatedBlogData.title : blog.title,
-                    text: updatedBlogData.text ? updatedBlogData.text : blog.text,
-                    author: updatedBlogData.author ? updatedBlogData.author : blog.author
-                }
-            }
-            return blog
-        })
-    }
-}
-
-const generateFilteredBlogs = (blogList, blogIdToDelete) => {
-
-    const filteredBlogList = []
-    
-    for (let i = 0; i < blogList.length; i++) {
-        const currentBlog = blogList[i]
-        if (currentBlog.id === blogIdToDelete) {
-            // continue;
-        }
-        filteredBlogList.push(currentBlog);
-    }
-
-    return filteredBlogList;
-}
-
-const generateUpdatedBlogs = (blogList, blogIdToUpdate, updatedBlogData) => {
-
-    const updatedBlogList = []
-
-    for (let i = 0; i < blogList.length; i++) {
-        const currentBlog = blogList[i]
-        if (currentBlog.id === blogIdToUpdate) {
-            if (updatedBlogData.title !== currentBlog.title && updatedBlogData.title !== "") {
-                currentBlog.title = updatedBlogData.title
-            }
-            if (updatedBlogData.text !== currentBlog.text && updatedBlogData.text !== "") {
-                currentBlog.text = updatedBlogData.text
-            }
-            if (updatedBlogData.author !== currentBlog.author && updatedBlogData.author !== "") {
-                currentBlog.author = updatedBlogData.author
-            }
-        }
-        updatedBlogList.push(currentBlog)
-    }
-
-    return updatedBlogList;
-}
-const saveBlogPosts = (blogList) => {
-    blogsImport.blogPosts = blogList;
-}
+router.delete("/delete-blog/:blogIds", async (req, res)=> {
+    const blogIds = req.params.blogIds.split(",").map((id)=>{return Number(id)})
+    await deletePosts(blogIds)
+    res.send("deleted blog")
+})
 
 module.exports = router;
 

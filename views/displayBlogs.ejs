@@ -4,19 +4,40 @@
     <script src="//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"></script>
     <script>
       $(document).ready(function () {
+        
         var blogs = [];
         var sortOrder;
-        var baseUrl = "http://localhost:4000/blogs/all";
+        var author;
+        var baseUrl = "http://localhost:4000/blogs/";
+        
+        //Get authors on page load
+        $.get(baseUrl + "authors", (authors)=>{
+          authors.forEach((author)=>{
+            $("#authorSelect").append(
+              '<option value="'+author+'">'+author+'</option>'
+            )
+          })
+        })
+
         $("#getBlogs").click(function () {
           $("#blogList").empty();
           sortOrder = $("#sortOrderSelect").val();
-          var url = baseUrl;
+          author = $("#authorSelect").val();
+
+          var url = baseUrl + "all?";
           if (sortOrder === "all") {
           } else if (sortOrder === "asc") {
-            url = baseUrl + "?sort=asc";
+            url += "sortOrder=asc&sortField=createdAt";
           } else if (sortOrder === "desc") {
-            url = baseUrl + "?sort=desc";
+            url += "sortOrder=desc&sortField=createdAt";
           }
+          if (author && author !== "all") {
+            if (url[url.length -1] !== "?") {
+              url += "&"
+            }
+            url += "filterField=author&filterValue="+encodeURIComponent(author)
+          }
+          console.log(url)
           $.get(url, function (blogs) {
             blogs.forEach((blog) => {
               $("#blogList").append(
@@ -55,6 +76,9 @@
       <option value="all" select>ALL</option>
       <option value="asc">ASC</option>
       <option value="desc">DESC</option>
+    </select>
+    <select id="authorSelect">
+      <option value="all" select>ALL</option>
     </select>
     <ul id="blogList"></ul>
   </body>

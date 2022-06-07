@@ -37,9 +37,10 @@
             }
           );
         });
+        var blogIds;
         $("#deleteSingleBlog").click(function () {
-          blogId = $("#blogId").val();
-          $.delete("http://localhost:4000/blogs/delete-blog/" + blogId, 
+          blogIds = $("#blogIds").val();
+          $.delete("http://localhost:4000/blogs/delete-blog/" + blogIds, 
           function (response){
             console.log("response data ", response)
           });
@@ -59,6 +60,10 @@
     <span>
       <label>Blog ID</label>
       <input id="blogId" type="text" />
+    </span>
+    <span>
+      <label>Blog IDs</label>
+      <input id="blogIds" type="text" />
     </span>
     <hr/>
     <button id="getSingleBlog">Get Single Blog</button>
